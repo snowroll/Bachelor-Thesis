@@ -4,12 +4,32 @@ filename = "benign.txt"
 
 comment = r'[^:]//(.*)'  # 短注释
 comment_long = r'/\*(.*?)\*/'  # 长注释
+repet = r'([0-9a-zA-Z])\1{1,}'
 comment_words = 0
 call = r'[a-zA-Z0-9_]+\([a-zA-Z0-9_, \-\'\"]*\)'  # 方法调用
 argument = r'[a-zA-Z0-9_]+\((.*?)\)'  # 方法参数
 operators = ["+", "-", "*", "/", "=", "+=", "*=", "%=", "/=", "-=", "++", "--"]
 len_characters = 0
 script_str = ""
+
+def isreadable(word):  # 判断一个单词是否可读
+    if len(word) > 30:
+        return False
+    alpha_num = 0
+    vowel_num = 0
+    vowel = 'aeiou'
+    for i in word:
+        if i.isalpha():
+            alpha_num += 1
+        if i in vowel:
+            vowel_num += 1
+    if alpha_num / len(word) < 0.7 or vowel_num / len(word) < 0.2 or vowel_num / len(word) > 0.6:
+        return False
+    repeat_words = re.findall(repet, word, re.S | re.M)
+    if len(repeat_words) > 2:
+        return False
+    return True
+
 with open(filename, 'r') as f:
     lines = 0
     comment_num = 0
@@ -46,6 +66,11 @@ with open(filename, 'r') as f:
                 argument_len += len(j)
                 # print(j)
     per_argument = argument_len / methods_num  # 每个方法的平均参数长度
+    read_num = 0  # 可读单词比例
+    for i in tokens:
+        if isreadable(i):
+            read_num += 1
+    print(read_num / string_num)
     print(methods_num, per_argument)
     print("operator_num", operator_num)
     print(comment_num, avg_comment, per_comment)
