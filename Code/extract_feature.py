@@ -105,26 +105,30 @@ def get_features(filename, _property):  # 手工添加最后一个特征， 良�
         features_dict.update(keyword_dict)  # 合并关键词特征和计算后的特征
         return features_dict
 
-path = "/Users/chaihj15/Desktop/test_data"  # 文件夹目录
-files= os.listdir(path)  # 得到文件夹下的所有文件名称
-i = 0
-for f in files:  # 遍历文件夹
-    file_path = os.path.join(path, f)
-    if not os.path.isdir(file_path):  # 判断是否是文件夹，不是文件夹才打开
-        print(file_path)
-        try:
-            _dict = get_features(file_path, "benign")
-        except UnicodeDecodeError as e:
-            continue
-        if i == 0:
-            new_dict = {}
-            for key in _dict:
-                new_dict[key] = [_dict[key]]
-                print(_dict[key], new_dict[key])
-            df = pd.DataFrame(new_dict)
-            df = df[list(_dict.keys())]
-        else:
-            df.loc[i] = list(_dict.values())  
-        i += 1
-df.to_csv("test.csv", index = True, sep=',')
-          
+def extract_feature(index_name):  # 训练集中提取样本features
+    path = "/Users/chaihj15/Desktop/Data/" + index_name # 文件夹目录
+    files= os.listdir(path)  # 得到文件夹下的所有文件名称
+    i = 0
+    for f in files:  # 遍历文件夹
+        file_path = os.path.join(path, f)
+        if not os.path.isdir(file_path):  # 判断是否是文件夹，不是文件夹才打开
+            # print(file_path)
+            try:
+                _dict = get_features(file_path, "benign")
+            except UnicodeDecodeError as e:
+                continue
+            if i == 0:
+                new_dict = {}
+                for key in _dict:
+                    new_dict[key] = [_dict[key]]
+                    # print(_dict[key], new_dict[key])
+                df = pd.DataFrame(new_dict)
+                df = df[list(_dict.keys())]
+            else:
+                df.loc[i] = list(_dict.values())  
+            i += 1
+    df.to_csv(path + "/" + "data.csv", index = True, sep=',')
+
+for i in range(2,11): 
+    print(i)
+    extract_feature(str(i))
