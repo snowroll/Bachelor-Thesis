@@ -19,24 +19,23 @@
 	<!-- //Meta tag Keywords -->
 
 	<!-- Custom-Files -->
-	<link rel="stylesheet" href="css/bootstrap.css">
+	<link rel="stylesheet" href="static/css/bootstrap.css">
 	<!-- Bootstrap-Core-CSS -->
-	<link rel="stylesheet" href="css/style.css" type="text/css" media="all" />
+	<link rel="stylesheet" href="static/css/style.css" type="text/css" media="all" />
 	<!-- Style-CSS -->
-	<link href="css/font-awesome.min.css" rel="stylesheet">
+	<link href="static/css/font-awesome.min.css" rel="stylesheet">
 	<!-- Font-Awesome-Icons-CSS -->
 	<!-- //Custom-Files -->
 
-	<link rel="stylesheet" href="js/codemirror/codemirror.min.css">
-	<script src="js/codemirror/htmlmixed.min.js"></script>
-	<script src="js/codemirror/codemirror.min.js"></script>
-	<script src="js/codemirror/code_css.min.js"></script>
-	<script src="js/codemirror/code_javascript.min.js"></script>
-	<script src="js/codemirror/code_xml.min.js"></script>
-	<script src="js/codemirror/code_closetag.min.js"></script>
+	<link rel="stylesheet" href="static/js/codemirror/codemirror.min.css">
+	<!-- <script src="static/js/codemirror/htmlmixed.min.js"></script> -->
+	<script src="static/js/codemirror/codemirror.min.js"></script>
+	<script src="static/js/codemirror/code_css.min.js"></script>
+	<script src="static/js/codemirror/code_javascript.min.js"></script>
+	<script src="static/js/codemirror/code_xml.min.js"></script>
+	<script src="static/js/codemirror/code_closetag.min.js"></script>
 	<script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
-	<script src="js/codemirror/code_closebrackets.min.js"></script> 
-	<script src="js/Deobfuscate/simplifier.js"></script>
+	<script src="static/js/codemirror/code_closebrackets.min.js"></script> 
 
 	<!-- Web-Fonts -->
 	<link href="http://fonts.googleapis.com/css?family=Poppins:100,100i,200,200i,300,300i,400,400i,500,500i,600,600i,700,700i,800,800i,900,900i&amp;subset=devanagari,latin-ext"
@@ -94,14 +93,14 @@
 						<div class="panel panel-default"> 
 							<div class="panel-heading">
 								<form class="form-inline">
-						  <div class="row">
-							  <div class="col-xs-6">
-								   <button type="button" onclick="resetCode()" class="btn btn-default">源代码：</button>
-								</div>
-								<div class="text-right">
-								  <button type="button" class="btn btn-success" onclick="submitTryit()" id="submitBTN"><span class="glyphicon glyphicon-send"></span> 点击运行</button>
-							  </div>
-						  </div>
+									<div class="row">
+										<div class="col-xs-6">
+											<button type="button" onclick="resetCode()" class="btn btn-default">源代码：</button>
+											</div>
+											<div class="text-right">
+											<button type="button" class="btn btn-success" onclick="dopost('/')" id="submitBTN"><span class="glyphicon glyphicon-send"></span>点击运行</button>
+										</div>
+									</div>
 								</form>
 							</div>
 							<div class="panel-body">
@@ -184,6 +183,33 @@
 
 	window.addEventListener("resize", autodivheight);
 
+	function dopost(url){
+		// var origin_code = document.getElementById('textareaCode').value;
+		var origin_code = editor.getValue();
+		var text = {"code": origin_code};
+		var xmlhttp;
+		if (window.XMLHttpRequest) { // code for IE7+, Firefox, Chrome, Opera, Safari
+    		xmlhttp = new XMLHttpRequest();
+  		} else { // code for IE6, IE5
+    		xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+		}
+		xmlhttp.onreadystatechange = function(){
+			if(xmlhttp.readyState == 4 && xmlhttp.status == 200){  //4 - 响应发送完成  200  - 服务器内部一切正常
+				console.log('response success')
+				var res_obj = xmlhttp.responseText;
+				var deob_code = JSON.parse(res_obj);  //TODO 没有加异常处理
+				// var deob_code = res_obj.message
+				submitTryit(deob_code.message)
+				// alert(deob_code.message);
+			}
+		}
+		xmlhttp.open("POST", "http://localhost:3000/test", true);
+		xmlhttp.setRequestHeader("Content-type", "application/json");
+		xmlhttp.send(JSON.stringify(text));
+		console.log(typeof JSON.stringify(text));
+		// alert('post success');
+	}
+
 	var x = 0;
 	function autodivheight(){
 		var winHeight=0;
@@ -206,31 +232,14 @@
 		submitTryit();
 	}
 
-	function submitTryit() {
-		var text = editor.getValue();
-		// var de_ast = convert_ast(text);
-		// alert(de_ast);
-		// var de_code = simplifier(de_ast);
-		// var patternHtml = /<html[^>]*>((.|[\n\r])*)<\/html>/im
-		// var patternHead = /<head[^>]*>((.|[\n\r])*)<\/head>/im
-		// var array_matches_head = patternHead.exec(text);
-		// var patternBody = /<body[^>]*>((.|[\n\r])*)<\/body>/im;
-		
-		// var array_matches_body = patternBody.exec(text);
+	function submitTryit(text) {
+		// var text = editor.getValue();
 		var basepath_flag = 1;
 		var basepath = '';
 		if(basepath_flag) {
 			basepath = '<base href="//www.runoob.com/try/demo_source/" target="_blank">';
 		}
-		// if(array_matches_head) {
-		// 	text = text.replace('<head>', '<head>' + basepath );
-		// } else if (patternHtml) {
-		// 	text = text.replace('<html>', '<head>' + basepath + '</head>');
-		// } else if (array_matches_body) {
-		// 	text = text.replace('<body>', '<body>' + basepath );
-		// } else {
-		// 	text = basepath + text;
-		// }
+		
 		var ifr = document.createElement("iframe");
 		ifr.setAttribute("frameborder", "0");
 		ifr.setAttribute("id", "iframeResult");  
@@ -239,11 +248,11 @@
 		
 		var ifrw = (ifr.contentWindow) ? ifr.contentWindow : (ifr.contentDocument.document) ? ifr.contentDocument.document : ifr.contentDocument;
 		ifrw.document.open();
-		ifrw.document.write(de_code);  
+		ifrw.document.write(text);  
 		ifrw.document.close();
 		autodivheight();
 	}
-	submitTryit();
+	submitTryit(" code is here");
 	autodivheight();
 </script>
 
