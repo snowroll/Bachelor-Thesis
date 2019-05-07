@@ -4,7 +4,7 @@ const esprima = require('esprima');
 const estraverse = require('estraverse');
 const Syntax = esprima.Syntax;
 
-const util = require('./util');
+// const util = require('./util');
 const Constants = require('./constants');
 // const ScopeChain = require('./scopechain');
 var util_test = require('./util_test');
@@ -25,6 +25,7 @@ global.window = global.window || global;
  * 将词转换为AST
  */
 const wrap = value => esprima.parse(JSON.stringify(value)).body[0].expression; 
+
 
 //ES7 包含 polyfill
 Array.prototype.includes = Array.prototype.includes || function(e){
@@ -81,11 +82,48 @@ function simplify(ast){
 
                         if (results.hasOwnProperty(node.operator)){
                             let val = results[node.operator];
+                            console.log(node.right, val);
                             return wrap(val);  //这步可以从语句生成ast，替换目前的ast节点
                         }
                     }
                     break;
                 
+                case Syntax.AssignmentExpression:
+                    if([node.left, node.right].every(e => simplify.isStatic(e))){
+                        let left = simplify.parseStatic(node.left);
+                        let right = simplify.parseStatic(node.right);
+                        
+                        let results = {  
+                            '=': right,
+                            '+=': left + right,
+                            '-=': left - right,
+                            '*=': left * right,
+                            '/=': left / right,
+                            '%=': left % right
+                        };
+
+                        if(results.hasOwnProperty(node.operator)){
+                            let val = results[node.operator];
+
+                            if(node.left.type === Syntax.MemberExpression){
+                                let left_obj = simplify.parseStatic(node.left.object);
+                                let left_idx = simplify.parseStatic(node.left.property);
+                                left_obj[left_idx] = val;
+                            }
+                            else{
+                                simplify.symbols.set(node.left.name, val);
+                            }
+                            
+                            console.log(node.right);
+                            node.operator = '=';
+                            node.right.type = 'Literal';
+                            node.right.value = val;
+                            node.right.raw = "1";
+                        }
+
+                    }
+                    break;
+                    
                 case Syntax.LogicalExpression:
                     if(node.left.type === Syntax.Literal && node.right.type === Syntax.Literal){
                         let left = node.left.value, right = node.right.value;

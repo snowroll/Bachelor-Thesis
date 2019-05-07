@@ -23,12 +23,17 @@ class Util_Test{
                 return true;
             case Syntax.Identifier:
                 return true;
+            case Syntax.MemberExpression:  // var m = t[0] + t[1];
+                return this.isStatic(node.object) && this.isStatic(node.property);
             case Syntax.ArrayExpression:
-                return node.elements.every(isStatic);
+                return node.elements.every(this.isStatic);
             case Syntax.ObjectExpression:
                 return node.properties.every(
                     property => isStatic(property.value) && [Syntax.Literal, Syntax.Identifier]
                     .indexOf(property.key.type) > -1);
+            //测试 递归解决赋值问题
+            case Syntax.BinaryExpression:
+                return [node.left, node.right].every(this.isStatic);
             default:
                 return false;
         }
@@ -54,13 +59,58 @@ class Util_Test{
 
             case Syntax.ArrayExpression:{
                 // console.log(node.elements.map(parseStatic));
-                return node.elements.map(parseStatic);
+                return node.elements.map(this.parseStatic);
             }
             case Syntax.ObjectExpression:
                 let obj = {};
                 node.properties.forEach(property => obj[property.key.name ||
                     property.key.value] = parseStatic(property.value));
                 return obj;
+            
+            case Syntax.MemberExpression:{
+                let _obj = this.parseStatic(node.object);
+                let _idx = this.parseStatic(node.property);
+
+                if(typeof(_obj) === 'object' && (typeof(_idx) === 'number' || typeof(_idx) === 'string')){
+                    return _obj[_idx];
+                }
+            }
+
+            //测试解决赋值问题
+            case Syntax.BinaryExpression:{
+                if([node.left, node.right].every(e => this.isStatic(e))){
+                    let left = this.parseStatic(node.left);
+                    let right = this.parseStatic(node.right);
+                    
+                    let results = {  //这里的实现有点蠢，为什么先把值算出来，再看是哪种操作符
+                        '|': left | right,
+                        '^': left ^ right,
+                        '&': left & right,
+                        '==': left == right,
+                        '!=': left != right,
+                        '===': left === right,
+                        '!==': left !== right,
+                        '<': left < right,
+                        '>': left > right,
+                        '<=': left <= right,
+                        '>=': left >= right,
+                        '<<': left << right,
+                        '>>': left >> right,
+                        '>>>': left >>> right,
+                        '+': left + right,
+                        '-': left - right,
+                        '*': left * right,
+                        '/': left / right,
+                        '%': left % right
+                    };   
+
+                    if (results.hasOwnProperty(node.operator)){
+                        let val = results[node.operator];
+                        return val;  //这步可以从语句生成ast，替换目前的ast节点
+                    }
+                }
+                //没有处理失败的情况
+            }
             default:
                 return null;
         }
@@ -87,7 +137,7 @@ class Util_Test{
      */
     isStaticArguments(node){
         return node.type === Syntax.CallExpression && 
-            node.arguments.every(isStatic);
+            node.arguments.every(this.isStatic);
     }
 
     /**

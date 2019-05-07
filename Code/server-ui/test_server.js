@@ -54,7 +54,13 @@ app.post("/test", function(req, res){
     console.log(typeof(json_obj.code));
 
     console.log(ori_code);
-    var de_code = deob_1.clean(ori_code);
+    var de_code;
+    try{
+        de_code = deob_1.clean(ori_code);
+    }
+    catch(err){
+        de_code = "can not deobfuscate the code";
+    }
     console.log(de_code);
     
     // var json = JSON.parse(req.body);
