@@ -46,8 +46,7 @@ app.all('/', function(req, res, next) {
 //反混淆api
 //参数 {source: "code"}  结果 {source: "de_code"}
 
-app.post("/test", function(req, res){
-    // console.log(JSON.stringify(req.body));
+app.post("/deobfuscation", function(req, res){
     var json_obj = req.body;
     var ori_code = json_obj.code;
 
@@ -62,13 +61,11 @@ app.post("/test", function(req, res){
         de_code = "can not deobfuscate the code";
     }
     console.log(de_code);
-    
-    // var json = JSON.parse(req.body);
-    // console.log(json);
-    //这里返回结果
-    // var text = {"code": origin_code};
-    // res.send(req.body);  
     res.json({ message: de_code });
+});
+
+app.post("/detect", function(req, res){
+    
 });
 
 app.listen(PORT, function() {

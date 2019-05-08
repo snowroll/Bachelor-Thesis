@@ -24,6 +24,7 @@
 	<link rel="stylesheet" href="static/css/style.css" type="text/css" media="all" />
 	<!-- Style-CSS -->
 	<link href="static/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="static/css/codemirror.css">
 	<!-- Font-Awesome-Icons-CSS -->
 	<!-- //Custom-Files -->
 
@@ -31,6 +32,8 @@
 	<!-- <script src="static/js/codemirror/htmlmixed.min.js"></script> -->
 	<script src="static/js/codemirror/codemirror.min.js"></script>
 	<script src="static/js/codemirror/code_css.min.js"></script>
+	<script src="static/js/codemirror/codemirror.js"></script>
+	<script src="static/js/codemirror/javascript.js"></script>
 	<script src="static/js/codemirror/code_javascript.min.js"></script>
 	<script src="static/js/codemirror/code_xml.min.js"></script>
 	<script src="static/js/codemirror/code_closetag.min.js"></script>
@@ -65,17 +68,18 @@
 							<input type="checkbox" id="drop" />
 							<ul class="menu">
 								<li><a href="deobfucation.html" class="active">反混淆</a></li>
-								<li><a href="detect.html">检测</a></li>
 								<li><a href="evaluation.html">评估</a></li>
 							</ul>
 						</nav>
 					</div>
 					<!-- //nav -->
 					<div class="d-flex mt-lg-1 mt-sm-2 mt-3 justify-content-center">
+						<input type="file" name="upload" id="upload" accept="text/plain" style="position:absolute; opacity:0;"/>
+						<span class="fa fa-upload"></span>
 						<!-- download 这里修改成添加文件-->
-						<a class="dwn-w3ls btn" href="" target="_blank">  
-							<span class="fa fa-save"></span>
-						</a>
+						<!-- <a class="dwn-w3ls btn" href="" target="_blank">  
+							<span class="fa fa-save" onclick="uploadFile()"></span>
+						</a> -->
 						<!-- //download -->
 					</div>
 				</div>
@@ -96,9 +100,12 @@
 									<div class="row">
 										<div class="col-xs-6">
 											<button type="button" onclick="resetCode()" class="btn btn-default">源代码：</button>
-											</div>
-											<div class="text-right">
-											<button type="button" class="btn btn-success" onclick="dopost('/')" id="submitBTN"><span class="glyphicon glyphicon-send"></span>点击运行</button>
+										</div>
+										<div class="text-right">
+											<button type="button" class="btn btn-success ml-1" onclick="dopost('/deobfuscation')" id="submitBTN"><span class="glyphicon glyphicon-send"></span>反混淆</button>
+										</div>
+										<div class="text-right">
+											<button type="button" class="btn btn-success ml-1" onclick="dopost('/detect')" id="submitBTN"><span class="glyphicon glyphicon-send"></span>检测</button>
 										</div>
 									</div>
 								</form>
@@ -113,7 +120,8 @@
 						<div class="col-sm-6">
 						<div class="panel panel-default"> 
 							<div class="panel-heading"><form class="form-inline"> <button type="button" class="btn btn-default">运行结果</button></form></div>
-							<div class="panel-body"><div id="iframewrapper"></div></div>
+							<!-- <div class="panel-body"><div id="iframewrapper"></div></div> -->
+							<div class="panel-body"><textarea class="form-control" readonly="readonly" id="iframewrapper" ></textarea></div>
 						</div>
 						</div>
 						
@@ -165,15 +173,17 @@
 
 </body>
 <script>
-	var mixedMode = {
-	name: "htmlmixed",
-	scriptTypes: [{matches: /\/x-handlebars-template|\/x-mustache/i,
-				mode: null},
-				{matches: /(text|application)\/(x-)?vb(a|script)/i,
-				mode: "vbscript"}]
-	};
 	var editor = CodeMirror.fromTextArea(document.getElementById("textareaCode"), {
-		mode: mixedMode,
+		mode: "text/javascript",
+		selectionPointer: true,
+		lineNumbers: true,
+		matchBrackets: true,
+		indentUnit: 4,
+		indentWithTabs: true
+	});
+
+	var res_editor = CodeMirror.fromTextArea(document.getElementById("iframewrapper"), {
+		mode: "text/javascript",
 		selectionPointer: true,
 		lineNumbers: true,
 		matchBrackets: true,
@@ -197,17 +207,15 @@
 			if(xmlhttp.readyState == 4 && xmlhttp.status == 200){  //4 - 响应发送完成  200  - 服务器内部一切正常
 				console.log('response success')
 				var res_obj = xmlhttp.responseText;
-				var deob_code = JSON.parse(res_obj);  //TODO 没有加异常处理
-				// var deob_code = res_obj.message
-				submitTryit(deob_code.message)
-				// alert(deob_code.message);
+				var deob_code = JSON.parse(res_obj);  
+				alert(deob_code.message);
+				update_res(deob_code.message);
 			}
 		}
-		xmlhttp.open("POST", "http://localhost:3000/test", true);
+		xmlhttp.open("POST", "http://localhost:3000"+url, true);
 		xmlhttp.setRequestHeader("Content-type", "application/json");
 		xmlhttp.send(JSON.stringify(text));
 		console.log(typeof JSON.stringify(text));
-		// alert('post success');
 	}
 
 	var x = 0;
@@ -224,35 +232,45 @@
 		}
 		height = winHeight*0.68
 		editor.setSize('100%', height);
-		document.getElementById("iframeResult").style.height= height +"px";
+		res_editor.setSize('100%', height);
+		// document.getElementById("iframeResult").style.height= height +"px";
 	}
 	function resetCode() {
-		var initCode = "Please input your JS code"  
+		var initCode = "Please input your JS code";  
 		editor.getDoc().setValue(initCode);		
-		submitTryit();
+		res_editor.getDoc().setValue(" ");
+		// submitTryit();
 	}
 
-	function submitTryit(text) {
-		// var text = editor.getValue();
-		var basepath_flag = 1;
-		var basepath = '';
-		if(basepath_flag) {
-			basepath = '<base href="//www.runoob.com/try/demo_source/" target="_blank">';
-		}
+	window.onload = function(){
+		var getFileContent = function (fileInput, callback) {
+            if (fileInput.files && fileInput.files.length > 0 && fileInput.files[0].size > 0) {
+                //下面这一句相当于JQuery的：var file =$("#upload").prop('files')[0];
+                var file = fileInput.files[0];
+                if (window.FileReader) {
+                    var reader = new FileReader();
+                    reader.onloadend = function (evt) {
+                        if (evt.target.readyState == FileReader.DONE) {
+                            callback(evt.target.result);
+                        }
+                    };
+                    // 包含中文内容用gbk编码
+                    reader.readAsText(file, 'utf-8');
+                }
+            }
+		};
 		
-		var ifr = document.createElement("iframe");
-		ifr.setAttribute("frameborder", "0");
-		ifr.setAttribute("id", "iframeResult");  
-		document.getElementById("iframewrapper").innerHTML = "";
-		document.getElementById("iframewrapper").appendChild(ifr);
-		
-		var ifrw = (ifr.contentWindow) ? ifr.contentWindow : (ifr.contentDocument.document) ? ifr.contentDocument.document : ifr.contentDocument;
-		ifrw.document.open();
-		ifrw.document.write(text);  
-		ifrw.document.close();
+		document.getElementById('upload').onchange = function () {
+            getFileContent(this, function (str) {
+                editor.getDoc().setValue(str);
+            });
+        };
+	};
+
+	function update_res(text) {
+		res_editor.getDoc().setValue(text);
 		autodivheight();
 	}
-	submitTryit(" code is here");
 	autodivheight();
 </script>
 
