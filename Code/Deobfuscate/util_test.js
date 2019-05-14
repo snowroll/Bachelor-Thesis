@@ -4,6 +4,35 @@ const esprima = require('esprima');
 const Syntax = esprima.Syntax;
 const ScopeChain = require('./scopechain');
 
+/**
+ * 测试一个结点是否为静态变量
+ * @param {} node 
+ */
+function Static(node){
+    if (!node)
+        return false;
+
+    switch (node.type){
+        case Syntax.Literal:
+            return true;
+        case Syntax.Identifier:
+            return true;
+        case Syntax.NewExpression:
+            return true;
+        case Syntax.MemberExpression:  // var m = t[0] + t[1];
+            return Static(node.object) && Static(node.property);
+        case Syntax.ArrayExpression:
+            return node.elements.every(this.isStatic);
+        case Syntax.ObjectExpression:
+            return node.properties.every(
+                property => Static(property.value) && [Syntax.Literal, Syntax.Identifier]
+                .indexOf(property.key.type) > -1);
+        case Syntax.BinaryExpression:
+            return Static(node.left) && Static(node.right);
+        default:
+            return false;
+    }
+}
 
 class Util_Test{
     constructor(){
@@ -23,7 +52,10 @@ class Util_Test{
                 return true;
             case Syntax.Identifier:
                 return true;
+            case Syntax.NewExpression:
+                return true;
             case Syntax.MemberExpression:  // var m = t[0] + t[1];
+                console.log(typeof(this))
                 return this.isStatic(node.object) && this.isStatic(node.property);
             case Syntax.ArrayExpression:
                 return node.elements.every(this.isStatic);
@@ -31,9 +63,13 @@ class Util_Test{
                 return node.properties.every(
                     property => isStatic(property.value) && [Syntax.Literal, Syntax.Identifier]
                     .indexOf(property.key.type) > -1);
-            //测试 递归解决赋值问题
             case Syntax.BinaryExpression:
-                return [node.left, node.right].every(this.isStatic);
+                // console.log(node, "??", node.left, " ?? ", node.right)
+                // console.log(this.isStatic(node.right), " mid ", node.right)
+                // console.log(this.isStatic(node.left), 'mmmm', node.right, 'jjjj')
+                if(this === undefined)
+                    return false;
+                return this.isStatic(node.left) && this.isStatic(node.right);
             default:
                 return false;
         }
@@ -48,13 +84,70 @@ class Util_Test{
             return false;
         
         switch(node.type){
-            case Syntax.Literal:{
+            case Syntax.Literal:{  //这步没问题
                 return node.value;
             }
-            case Syntax.Identifier:{
+
+            case Syntax.NewExpression:{  //暂时ok
+                var empty = false;
+                if(node.arguments.length === 0)
+                    empty = true;
+                if(!empty)
+                    var argument_list = node.arguments.map(this.parseStatic);
+                
+                switch(node.callee.name){
+                    case 'Array':{
+                        if(!empty){
+                            if(argument_list.length === 1)
+                                return new Array(argument_list[0]);
+                            else
+                                return argument_list;
+                        }
+                        else 
+                            return new Array();
+                    }
+                    case 'String':{
+                        if(!empty)
+                            return new String(argument_list[0]);
+                        else
+                            return new String();
+                    }
+                    case 'Boolean':{
+                        if(!empty)
+                            return new Boolean(argument_list[0]);
+                        else
+                            return new Boolean();
+                    }
+                    case 'Date':{
+                        if(argument_list.length === 1)
+                            return new Date(argument_list[0]);
+                        else
+                            return new Date();  //这里简化处理
+                    }
+                    case 'Number':{
+                        if(empty)
+                            return new Number();
+                        else
+                            return new Number(argument_list[0]);
+                    }
+                    case 'RegExp':{
+                        if(empty)
+                            return new RegExp();
+                        else
+                            return new RegExp(argument_list[0]);
+                    }
+
+                    default:{
+                        return null;
+                    }
+                }
+            }
+
+            case Syntax.Identifier:{  //是标识符的，均返回值
                 if(this.symbols.has(node.name)){
                     return this.symbols.get(node.name);
                 }
+                return null;
             }
 
             case Syntax.ArrayExpression:{
@@ -67,13 +160,14 @@ class Util_Test{
                     property.key.value] = parseStatic(property.value));
                 return obj;
             
-            case Syntax.MemberExpression:{
+            case Syntax.MemberExpression:{  //这里可以由simplifier中的解决，
                 let _obj = this.parseStatic(node.object);
                 let _idx = this.parseStatic(node.property);
 
                 if(typeof(_obj) === 'object' && (typeof(_idx) === 'number' || typeof(_idx) === 'string')){
                     return _obj[_idx];
                 }
+                return null;
             }
 
             //测试解决赋值问题
@@ -108,6 +202,7 @@ class Util_Test{
                         let val = results[node.operator];
                         return val;  //这步可以从语句生成ast，替换目前的ast节点
                     }
+                    return null;
                 }
                 //没有处理失败的情况
             }
