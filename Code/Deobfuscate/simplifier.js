@@ -126,6 +126,7 @@ function simplify(ast){
                     break;
                 
                 case Syntax.AssignmentExpression:
+                    console.log("assignment begin ", node.left, " end ");
                     if([node.left, node.right].every(e => simplify.isStatic(e))){
                         let left = simplify.parseStatic(node.left);
                         let right = simplify.parseStatic(node.right);
@@ -142,12 +143,13 @@ function simplify(ast){
 
                         if(results.hasOwnProperty(node.operator)){
                             let val = results[node.operator];
-                            console.log(val, node.operator, "assignment operator")
                             if(val !== null){
                                 let change = 0;
                                 if(node.left.type === Syntax.MemberExpression){
+                                    console.log('left type is memberexpression')
                                     let left_obj = simplify.parseStatic(node.left.object);
                                     let left_idx = simplify.parseStatic(node.left.property);
+                                    console.log("obj is ", left_obj, "idx is", left_idx, node.left.property.type);
                                     left_obj[left_idx] = val;
                                     change = 1;
                                 }
@@ -169,8 +171,9 @@ function simplify(ast){
                                 if(change === 1){
                                     node.operator = '=';
                                     node.right = wrap(right);
+                                    console.log("change done node is ", node);
                                 }
-                                console.log("assignment result ", node)
+                                // console.log("assignment result ", node)
                             }
                         }
 
@@ -360,12 +363,12 @@ function simplify(ast){
             
                     }
             
-                    if (node.computed &&
+                    if (node.computed &&  //只有在操作符号那里改变节点，否则会有错误
                         simplify.symbols.has(node.object.name) &&
                         node.property.type === Syntax.Literal) {
                         let val = simplify.symbols.get(node.object.name)[node.property.value];
-                        if (typeof val === 'string')
-                            return wrap(val);
+                        // if (typeof val === 'string')
+                        //     return wrap(val);
                     }
             
                     // convert brackets to dot

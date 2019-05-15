@@ -5,6 +5,7 @@ class ScopeChain{
         this.level = 0;
         this.scope = Object.create(null);
         this.global = Object.create(null);
+        this.tmp_var = new Array();
     }
 
     /**
@@ -20,8 +21,9 @@ class ScopeChain{
      *  离开一个作用域
      */
     leave(){
-        this.leave--;
-        if(this.leave > 0){
+        this.level--;
+        // this.scope.pop();
+        if(this.level > 0){
             this.scope = this.__parent__;
         }
         else{
@@ -35,25 +37,13 @@ class ScopeChain{
      */
     set(name, val){  //给对象的属性name 赋值为val
         this.scope[name] = val;
+        console.log("set", name, val);
     }
 
     /**
      * 获取一个变量的值
      */
     get(name){
-        // var tmp = this.scope;
-        // tmp_leave = this.leave;
-        // while(tmp_leave > 0){
-        //     if(name in tmp)
-        //         return tmp[name];
-        //     else{
-        //         tmp = tmp.__parent;
-        //         tmp_leave--;
-        //     }
-        // }
-        // if(name in this.global)
-        //     return this.global[name];
-        // return "";
         return this.scope[name];
     }
 

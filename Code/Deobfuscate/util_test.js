@@ -64,9 +64,6 @@ class Util_Test{
                     property => isStatic(property.value) && [Syntax.Literal, Syntax.Identifier]
                     .indexOf(property.key.type) > -1);
             case Syntax.BinaryExpression:
-                // console.log(node, "??", node.left, " ?? ", node.right)
-                // console.log(this.isStatic(node.right), " mid ", node.right)
-                // console.log(this.isStatic(node.left), 'mmmm', node.right, 'jjjj')
                 if(this === undefined)
                     return false;
                 return this.isStatic(node.left) && this.isStatic(node.right);
