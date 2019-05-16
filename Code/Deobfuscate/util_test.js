@@ -1,9 +1,10 @@
-'use strict';
+// 'use strict';
 
 const esprima = require('esprima');
 const Syntax = esprima.Syntax;
 const ScopeChain = require('./scopechain');
 
+var symbols = new ScopeChain();
 /**
  * 测试一个结点是否为静态变量
  * @param {} node 
@@ -22,7 +23,7 @@ function Static(node){
         case Syntax.MemberExpression:  // var m = t[0] + t[1];
             return Static(node.object) && Static(node.property);
         case Syntax.ArrayExpression:
-            return node.elements.every(this.isStatic);
+            return node.elements.every(isStatic);
         case Syntax.ObjectExpression:
             return node.properties.every(
                 property => Static(property.value) && [Syntax.Literal, Syntax.Identifier]
@@ -37,6 +38,7 @@ function Static(node){
 class Util_Test{
     constructor(){
         this.symbols = new ScopeChain();
+        console.log("construct util test ok")
     }
 
     /**
@@ -44,32 +46,7 @@ class Util_Test{
      * @param {} node 
      */
     isStatic(node){
-        if (!node)
-            return false;
-
-        switch (node.type){
-            case Syntax.Literal:
-                return true;
-            case Syntax.Identifier:
-                return true;
-            case Syntax.NewExpression:
-                return true;
-            case Syntax.MemberExpression:  // var m = t[0] + t[1];
-                console.log(typeof(this))
-                return this.isStatic(node.object) && this.isStatic(node.property);
-            case Syntax.ArrayExpression:
-                return node.elements.every(this.isStatic);
-            case Syntax.ObjectExpression:
-                return node.properties.every(
-                    property => isStatic(property.value) && [Syntax.Literal, Syntax.Identifier]
-                    .indexOf(property.key.type) > -1);
-            case Syntax.BinaryExpression:
-                if(this === undefined)
-                    return false;
-                return this.isStatic(node.left) && this.isStatic(node.right);
-            default:
-                return false;
-        }
+        Static(node);
     }
 
     /**
@@ -77,15 +54,18 @@ class Util_Test{
      * @param {*} node 
      */
     parseStatic(node){
+        console.log("step ***", this);
         if(!node)
             return false;
         
+        console.log("parseStatic mode", node, this);
         switch(node.type){
             case Syntax.Literal:{  //这步没问题
                 return node.value;
             }
 
             case Syntax.NewExpression:{  //暂时ok
+                console.log("NewExpression");
                 var empty = false;
                 if(node.arguments.length === 0)
                     empty = true;
@@ -141,23 +121,27 @@ class Util_Test{
             }
 
             case Syntax.Identifier:{  //是标识符的，均返回值
-                if(this.symbols.has(node.name)){
-                    return this.symbols.get(node.name);
+                console.log("Identifier");
+                if(symbols.has(node.name)){
+                    return symbols.get(node.name);
                 }
                 return null;
             }
 
             case Syntax.ArrayExpression:{
+                console.log("ArrayExpression")
                 // console.log(node.elements.map(parseStatic));
                 return node.elements.map(this.parseStatic);
             }
             case Syntax.ObjectExpression:
+                console.log("ObjectExpression")
                 let obj = {};
                 node.properties.forEach(property => obj[property.key.name ||
-                    property.key.value] = parseStatic(property.value));
+                    property.key.value] = this.parseStatic(property.value));
                 return obj;
             
             case Syntax.MemberExpression:{  //这里可以由simplifier中的解决，
+                console.log("MemberExpression")
                 let _obj = this.parseStatic(node.object);
                 let _idx = this.parseStatic(node.property);
 
@@ -169,7 +153,8 @@ class Util_Test{
 
             //测试解决赋值问题
             case Syntax.BinaryExpression:{
-                if([node.left, node.right].every(e => this.isStatic(e))){
+                console.log("BinaryExpression")
+                if([node.left, node.right].every(e => /*this.isStatic(e)*/ Static(e))){
                     let left = this.parseStatic(node.left);
                     let right = this.parseStatic(node.right);
                     
@@ -228,6 +213,7 @@ class Util_Test{
      * @param {*} node 
      */
     isStaticArguments(node){
+        console.log("???", this)
         return node.type === Syntax.CallExpression && 
             node.arguments.every(this.isStatic);
     }
@@ -237,6 +223,7 @@ class Util_Test{
      * @param {*} node 
      */
     parseArguments(node){
+        console.log("step one ", this)
         return node.arguments.map(this.parseStatic);
     }
 
@@ -246,6 +233,10 @@ class Util_Test{
      */
     expression(code){
         return esprima.parse(code).body[0].expression;
+    }
+
+    get_symbols(){
+        return symbols;
     }
 }
 

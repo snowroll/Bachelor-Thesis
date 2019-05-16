@@ -4,14 +4,13 @@ const esprima = require('esprima');
 const estraverse = require('estraverse');
 const Syntax = esprima.Syntax;
 
-// const util = require('./util');
 const Constants = require('./constants');
-// const ScopeChain = require('./scopechain');
+const ScopeChain = require('./scopechain');
 var util_test = require('./util_test');
+
 
 //调试代码 ts
 var fs = require('fs');
-// var filepath = '/Users/chaihj15/Desktop/a.txt';
 let escodegen = require('escodegen');
 
 //base64编码转换  utils 
@@ -26,7 +25,6 @@ global.window = global.window || global;
  */
 const wrap = value => esprima.parse(JSON.stringify(value)).body[0].expression; 
 
-
 //ES7 包含 polyfill
 Array.prototype.includes = Array.prototype.includes || function(e){
     return this.indexOf(e) > -1;
@@ -36,7 +34,7 @@ Array.prototype.includes = Array.prototype.includes || function(e){
  * 几个辅助函数，scopechain
  * @param {*} ast 
  */
-function createNewScope(node){  //进入函数时，创建域
+function createNewScope(node){  //判断是否进入一个新域
     return node.type === 'FunctionDeclaration' ||
            node.type === 'FunctionExpression' ||
            node.type === 'Program';
@@ -56,72 +54,79 @@ function simplify(ast){
     let simplify = new util_test();
 
     ast = estraverse.replace(ast, {  //遍历顺序，先遍历节点的叶子节点，逐层回溯
-        enter: function(node){
+        enter: function(node){  //遍历节点，深度搜索
+            // console.log("enter node", node);
             if(createNewScope(node)){  //进入新的作用域
-                simplify.symbols.enter();
+                // simplify.symbols.enter();
+                // console.log("enter ", simplify.symbols);
             }
-            if(Block_Statement(node)){  //for 模块
+            if(Block_Statement(node)){  //进入For Statement 等临时变量区，
                 simplify.symbols.tmp_var.push([]);
             }
             switch(node.type){
                 case Syntax.ForStatement:  //记录会变的变量，不对其进行简化
-                    console.log("Forstatement ")
                     if(node.init.type === "VariableDeclaration"){
                         var cur_block = simplify.symbols.tmp_var[simplify.symbols.tmp_var.length - 1];
                         cur_block.push(node.init.declarations.id.name);
                     }
                     else if(node.init.type === "AssignmentExpression"){
                         var cur_block = simplify.symbols.tmp_var[simplify.symbols.tmp_var.length - 1];
-                        cur_block.push(node.init.left.name);
-                        console.log(simplify.symbols.tmp_var[simplify.symbols.tmp_var.length - 1], "cur_block"); 
+                        cur_block.push(node.init.left.name); 
                     }
                     break;
-
-                
-                
+                case Syntax.VariableDeclarator:
+                    console.log("variabledeclarator")
+                    if(simplify.isStatic(node.init)){
+                        let val = simplify.parseStatic(node.init);
+                        simplify.symbols.set(node.id.name, val);
+                    }
+                    if(node.init.type === "FunctionExpression"){  //var f = function(x){}
+                        let exec_func = escodegen.generate(node.init.body);
+                        let param = []
+                        for(let i = 0; i < node.init.params.length; i++){
+                            param.push(node.init.params[i].name);
+                        }
+                        let tmp_func = new Function(param, exec_func);  
+                        console.log("new function param ", param, " exec code ", exec_func);
+                        simplify.symbols.set(node.id.name, tmp_func);
+                    }
+                    break;
+                case Syntax.FunctionDeclaration:
+                    
+                    break;
+                    
                 default:               
             }
         },
         leave: function(node){
-            if(createNewScope(node)){
-                for(idx in simplify.symbols.scope){
-                    console.log(idx, simplify.symbols.scope[idx]);
-                }
-                simplify.symbols.enter();
-            }
-            if(Block_Statement(node)){
-                simplify.symbols.tmp_var.pop();
-            }
+            console.log("leave ", node);
             switch(node.type){
                 case Syntax.FunctionDeclaration:
-                    if(node.params.length === 0 && node.body.body[node.body.body.length-1].type === "ReturnStatement"){  //无参数的函数调用，反混淆
+                    if(node.body.body[node.body.body.length-1].type === "ReturnStatement"){  //无参数的函数调用，反混淆
                         let func_string;
-                        let block_str = escodegen.generate(node.body);
-                        console.log('body code ', block_str);
-                        let end_pos = block_str.indexOf("return ");
-                        func_string = block_str.slice(1, end_pos);
-                        var func_val = eval(func_string);
-                        console.log(func_val, "eval function value");
+                        let exec_func = escodegen.generate(node.body);
+                        let param = [];
+                        for(let i = 0; i < node.params.length; i++)
+                            param.push(node.params[i].name)
+                        let tmp_func = new Function(param, exec_func);
+                        // console.log('body code ', block_str);
+                        let end_pos = exec_func.indexOf("return ");
+                        func_string = exec_func.slice(1, end_pos);
+                        let res_value = tmp_func(param);
+                        console.log(res_value, "eval function value");
                         let arr_len = node.body.body.length;
                         var new_func = node.body.body.slice(arr_len - 1, arr_len);
                         node.body.body = new_func;
                         // node.body.body[0].type = "ReturnStatement";
                         node.body.body[0].argument.type = "Literal";
-                        node.body.body[0].argument.value = func_val;
-                        node.body.body[0].argument.raw = func_val;
+                        node.body.body[0].argument.value = res_value;
+                        node.body.body[0].argument.raw = res_value;
                     
-                        simplify.symbols.set(node.id.name, func_val);
+                        simplify.symbols.set(node.id.name, tmp_func);
                         // return wrap(node.id.name+"="+func_val);
                     }
                     else{
                         return null;
-                    }
-                    break;
-
-                case Syntax.VariableDeclarator:  //简化变量声明  TODO 有问题
-                    if(simplify.isStatic(node.init)){
-                        let val = simplify.parseStatic(node.init);
-                        simplify.symbols.set(node.id.name, val);
                     }
                     break;
                 
@@ -284,8 +289,14 @@ function simplify(ast){
 
                     if (node.callee.type === Syntax.Identifier && 
                         simplify.symbols.has(node.callee.name)){
-                        let val = simplify.symbols.get(node.callee.name);
-                        return wrap(val);
+                        console.log("here");
+                        let callee_func = simplify.symbols.get(node.callee.name);
+                        console.log(callee_func(100));
+                        let arg = [];
+                        for(let i = 0; i < node.arguments.length; i++)
+                            arg.push(node.arguments[i].value);
+                        let callee_val = callee_func(arg);
+                        return wrap(callee_val);
                     }
 
                     if (node.callee.type === Syntax.MemberExpression) {
@@ -295,9 +306,11 @@ function simplify(ast){
                             callee.property.type === Syntax.Identifier &&
                             Constants.Objects[callee.object.name].includes(callee.property.name) &&
                             simplify.isStaticArguments(node)) {
-            
+                            // console.log("here ?")
                             let method = global[callee.object.name][callee.property.name];
+                            console.log("here 1")
                             let val = method.apply(null, simplify.parseArguments(node));
+                            console.log("here 2")
                             return wrap(val);
                         }
                         
@@ -392,6 +405,13 @@ function simplify(ast){
                         if(simplify.symbols.has(node.expression.callee.name))
                             console.log(simplify.symbols.get(node.expression.callee.name));
                 default:
+            }
+            if(createNewScope(node)){
+                // simplify.symbols.leave();
+                // console.log("leave ", simplify.symbols);
+            }
+            if(Block_Statement(node)){
+                simplify.symbols.tmp_var.pop();
             }
         }
     });

@@ -12,6 +12,7 @@ class ScopeChain{
      *  进入一个作用域`
      */
     enter(){
+        console.log("scope enter level: ", this.level, " scope: ", this.scope);
         this.level++;
         this.__parent__ = this.scope;
         this.scope = Object.create(null);
@@ -21,12 +22,10 @@ class ScopeChain{
      *  离开一个作用域
      */
     leave(){
-        this.level--;
-        // this.scope.pop();
-        if(this.level > 0){
+        console.log("scope leave level: ", this.level, " scope: ", this.scope);
+        if (--this.level > 0) {
             this.scope = this.__parent__;
-        }
-        else{
+        } else {
             this.level = 0;
             this.scope = this.global;
         }
