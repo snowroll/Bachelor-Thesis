@@ -29,6 +29,7 @@ function Static(node){
                 property => Static(property.value) && [Syntax.Literal, Syntax.Identifier]
                 .indexOf(property.key.type) > -1);
         case Syntax.BinaryExpression:
+            // console.log("static is ?", Static(node.left) && Static(node.right));
             return Static(node.left) && Static(node.right);
         default:
             return false;
@@ -46,7 +47,7 @@ class Util_Test{
      * @param {} node 
      */
     isStatic(node){
-        Static(node);
+        return Static(node);
     }
 
     /**
@@ -58,7 +59,7 @@ class Util_Test{
         if(!node)
             return false;
         
-        console.log("parseStatic mode", node, this);
+        console.log("parseStatic mode");
         switch(node.type){
             case Syntax.Literal:{  //这步没问题
                 return node.value;
@@ -122,8 +123,8 @@ class Util_Test{
 
             case Syntax.Identifier:{  //是标识符的，均返回值
                 console.log("Identifier");
-                if(symbols.has(node.name)){
-                    return symbols.get(node.name);
+                if(this.symbols.has(node.name)){
+                    return this.symbols.get(node.name);
                 }
                 return null;
             }
@@ -153,10 +154,11 @@ class Util_Test{
 
             //测试解决赋值问题
             case Syntax.BinaryExpression:{
-                console.log("BinaryExpression")
-                if([node.left, node.right].every(e => /*this.isStatic(e)*/ Static(e))){
+                console.log("BinaryExpression", this.isStatic(node.left), this.isStatic(node.right));
+                if([node.left, node.right].every(e => this.isStatic(e))){
                     let left = this.parseStatic(node.left);
                     let right = this.parseStatic(node.right);
+                    console.log("binary ", node.operator, "res", left, right);
                     
                     let results = {  //这里的实现有点蠢，为什么先把值算出来，再看是哪种操作符
                         '|': left | right,
@@ -186,7 +188,7 @@ class Util_Test{
                     }
                     return null;
                 }
-                //没有处理失败的情况
+                return null;
             }
             default:
                 return null;
@@ -224,7 +226,8 @@ class Util_Test{
      */
     parseArguments(node){
         console.log("step one ", this)
-        return node.arguments.map(this.parseStatic);
+        // return this.parseStatic(node.arguments[0]);
+        return node.arguments.map(x => this.parseStatic(x));
     }
 
     /**
@@ -233,10 +236,6 @@ class Util_Test{
      */
     expression(code){
         return esprima.parse(code).body[0].expression;
-    }
-
-    get_symbols(){
-        return symbols;
     }
 }
 
