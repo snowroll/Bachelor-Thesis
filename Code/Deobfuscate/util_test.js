@@ -23,7 +23,7 @@ function Static(node){
         case Syntax.MemberExpression:  // var m = t[0] + t[1];
             return Static(node.object) && Static(node.property);
         case Syntax.ArrayExpression:
-            return node.elements.every(isStatic);
+            return node.elements.every(Static);
         case Syntax.ObjectExpression:
             return node.properties.every(
                 property => Static(property.value) && [Syntax.Literal, Syntax.Identifier]
@@ -39,7 +39,6 @@ function Static(node){
 class Util_Test{
     constructor(){
         this.symbols = new ScopeChain();
-        console.log("construct util test ok")
     }
 
     /**
@@ -55,11 +54,9 @@ class Util_Test{
      * @param {*} node 
      */
     parseStatic(node){
-        console.log("step ***", this);
         if(!node)
             return false;
         
-        console.log("parseStatic mode");
         switch(node.type){
             case Syntax.Literal:{  //这步没问题
                 return node.value;
@@ -215,7 +212,6 @@ class Util_Test{
      * @param {*} node 
      */
     isStaticArguments(node){
-        console.log("???", this)
         return node.type === Syntax.CallExpression && 
             node.arguments.every(this.isStatic);
     }
@@ -225,7 +221,6 @@ class Util_Test{
      * @param {*} node 
      */
     parseArguments(node){
-        console.log("step one ", this)
         // return this.parseStatic(node.arguments[0]);
         return node.arguments.map(x => this.parseStatic(x));
     }
