@@ -99,9 +99,9 @@ function simplify_func(ast){
                     
                     break;
                 
-                    case Syntax.AssignmentExpression:
+                case Syntax.AssignmentExpression:
                     console.log("assignment begin ", node.left, " end ");
-                    if(simplify.isStatic(node.left) && node.operator === "="
+                    if(node.left.type === "Identifier" && node.operator === "="
                        && node.right.type === "FunctionExpression"){
                         let exec_func = escodegen.generate(node.right.body);
                         let param = []
@@ -156,7 +156,7 @@ function simplify_func(ast){
                                 if(change === 1){
                                     node.operator = '=';
                                     node.right = wrap(right);
-                                    console.log("change done node is ", node);
+                                    // console.log("change done node is ", node);
                                 }
                                 // console.log("assignment result ", node)
                             }
@@ -332,15 +332,16 @@ function simplify_func(ast){
                             callee.property.type === Syntax.Identifier &&
                             Constants.Objects[callee.object.name].includes(callee.property.name) &&
                             simplify.isStaticArguments(node)) {
-                            // console.log("here ?")
+                            console.log("memberexpression simpily start")
                             let method = global[callee.object.name][callee.property.name];
-                            // console.log("method ",method, node);
+                            // console.log()
                             // console.log(simplify.parseArguments(node));
                             if(simplify.parseArguments(node)[0] === null)
                                 return;
+                            console.log("simpily argument ", simplify.parseArguments(node)[0]);
                             let val = method.apply(null, simplify.parseArguments(node));
-                            // console.log("here &&&&  ", val)
-                            return wrap(val);
+                            console.log("memberexpression method result is   ", val)
+                            return ; wrap(val);
                         }
                         
                         if (callee.property.type === Syntax.Identifier) {
