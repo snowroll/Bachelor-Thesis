@@ -6,6 +6,7 @@ const Syntax = esprima.Syntax;
 
 const Constants = require('./constants');
 const ScopeChain = require('./scopechain');
+
 var util_test = require('./util_test');
 
 
@@ -20,6 +21,7 @@ global.atob = str => new Buffer(str, 'base64').toString();
 //在节点中模拟窗口
 global.window = global.window || global;
 
+var sum = 0
 /**
  * 将词转换为AST
  */
@@ -52,11 +54,9 @@ function Block_Statement(node){  //防止循环变量被简化
 function simplify_func(ast){
     //变量
     let simplify = new util_test();
-
-    // function Get_Symbols(){
-    //     return simplify;
-    // }
-
+    let success = true;
+    
+    try{
     ast = estraverse.replace(ast, {  //遍历顺序，先遍历节点的叶子节点，逐层回溯
         enter: function(node){  //遍历节点，深度搜索
             // console.log("enter node", node);
@@ -79,7 +79,7 @@ function simplify_func(ast){
                     }
                     break;
                 case Syntax.VariableDeclarator:
-                    console.log("variabledeclarator")
+                    // console.log("variabledeclarator")
                     if(simplify.isStatic(node.init)){
                         let val = simplify.parseStatic(node.init);
                         simplify.symbols.set(node.id.name, val);
@@ -91,7 +91,7 @@ function simplify_func(ast){
                             param.push(node.init.params[i].name);
                         }
                         let tmp_func = new Function(param, exec_func);  
-                        console.log("new function param ", param, " exec code ", exec_func);
+                        // console.log("new function param ", param, " exec code ", exec_func);
                         simplify.symbols.set(node.id.name, tmp_func);
                     }
                     break;
@@ -100,7 +100,7 @@ function simplify_func(ast){
                     break;
                 
                 case Syntax.AssignmentExpression:
-                    console.log("assignment begin ", node.left, " end ");
+                    // console.log("assignment begin ", node.left, " end ");
                     if(node.left.type === "Identifier" && node.operator === "="
                        && node.right.type === "FunctionExpression"){
                         let exec_func = escodegen.generate(node.right.body);
@@ -109,13 +109,13 @@ function simplify_func(ast){
                             param.push(node.right.params[i].name);
                         }
                         let tmp_func = new Function(param, exec_func);  
-                        console.log("new function param ", param, " exec code ", exec_func);  //TODO  简化错误，导致函数错误
+                        // console.log("new function param ", param, " exec code ", exec_func);  //TODO  简化错误，导致函数错误
                         simplify.symbols.set(node.left.name, tmp_func);
                     }
                     if([node.left, node.right].every(e => simplify.isStatic(e))){
                         let left = simplify.parseStatic(node.left);
                         let right = simplify.parseStatic(node.right);
-                        console.log("assignment", node.left, "=", left, node.right, "=", right);
+                        // console.log("assignment", node.left, "=", left, node.right, "=", right);
                         
                         let results = {  
                             '=': right,
@@ -131,10 +131,10 @@ function simplify_func(ast){
                             if(val !== null){
                                 let change = 0;
                                 if(node.left.type === Syntax.MemberExpression){
-                                    console.log('left type is memberexpression')
+                                    // console.log('left type is memberexpression')
                                     let left_obj = simplify.parseStatic(node.left.object);
                                     let left_idx = simplify.parseStatic(node.left.property);
-                                    console.log("obj is ", left_obj, "idx is", left_idx, node.left.property.type);
+                                    // console.log("obj is ", left_obj, "idx is", left_idx, node.left.property.type);
                                     left_obj[left_idx] = val;
                                     change = 1;
                                 }
@@ -182,7 +182,7 @@ function simplify_func(ast){
                         let end_pos = exec_func.indexOf("return ");
                         func_string = exec_func.slice(1, end_pos);
                         let res_value = tmp_func(param);
-                        console.log(res_value, "eval function value");
+                        // console.log(res_value, "eval function value");
                         let arr_len = node.body.body.length;
                         var new_func = node.body.body.slice(arr_len - 1, arr_len);
                         node.body.body = new_func;
@@ -201,13 +201,13 @@ function simplify_func(ast){
 
                 case Syntax.BinaryExpression:
                     // if([node.left, node.right].every(e => e.type == Syntax.Literal)){
-                    console.log("here 1")
+                    // console.log("here 1")
                     // console.log(simplify.isStatic(node.left), simplify.isStatic())
                     if([node.left, node.right].every(e => simplify.isStatic(e))){
-                        console.log("here 2")
+                        // console.log("here 2")
                         let left = simplify.parseStatic(node.left);
                         let right = simplify.parseStatic(node.right);
-                        console.log("binary ", node.operator, left, right);
+                        // console.log("binary ", node.operator, left, right);
                         if(typeof(left) === "number" || typeof(left) === "string"){
                             node.left.type = "Literal";
                             node.left.value = left;
@@ -245,7 +245,7 @@ function simplify_func(ast){
 
                         if (results.hasOwnProperty(node.operator)){
                             let val = results[node.operator];
-                            console.log(node.operator, node.left, left, node.right, right, val, ' binary ');
+                            // console.log(node.operator, node.left, left, node.right, right, val, ' binary ');
                             return wrap(val);  //这步可以从语句生成ast，替换目前的ast节点
                         }
                     }
@@ -308,7 +308,7 @@ function simplify_func(ast){
                         let tmp_symbols = simplify_func(tmp_ast);
                         for(var i in tmp_symbols[1].scope){
                             simplify.symbols.set(i, tmp_symbols[1].get(i))
-                            console.log(i, tmp_symbols[1].get(i));
+                            // console.log(i, tmp_symbols[1].get(i));
                         }
                         return esprima.parseScript(val[0]);
                     }
@@ -332,15 +332,15 @@ function simplify_func(ast){
                             callee.property.type === Syntax.Identifier &&
                             Constants.Objects[callee.object.name].includes(callee.property.name) &&
                             simplify.isStaticArguments(node)) {
-                            console.log("memberexpression simpily start")
+                            // console.log("memberexpression simpily start")
                             let method = global[callee.object.name][callee.property.name];
                             // console.log()
                             // console.log(simplify.parseArguments(node));
                             if(simplify.parseArguments(node)[0] === null)
                                 return;
-                            console.log("simpily argument ", simplify.parseArguments(node)[0]);
+                            // console.log("simpily argument ", simplify.parseArguments(node)[0]);
                             let val = method.apply(null, simplify.parseArguments(node));
-                            console.log("memberexpression method result is   ", val)
+                            // console.log("memberexpression method result is   ", val)
                             return ; wrap(val);
                         }
                         
@@ -364,7 +364,7 @@ function simplify_func(ast){
           
                             if (typeof calleeVal !== 'undefined') {
                                 let calleeType = typeof calleeVal;
-                                console.log(calleeType);
+                                // console.log(calleeType);
                                 // holy Javascript
                                 if (calleeType === 'object' && Array.isArray(calleeVal)) {
                                     calleeType = 'array';
@@ -373,7 +373,7 @@ function simplify_func(ast){
                                     Constants.Methods[calleeType].includes(callee.property.name) &&
                                     simplify.isStaticArguments(node)) {
                                     let method = calleeVal[callee.property.name];
-                                    console.log(method);
+                                    // console.log(method);
             
                                     let val = method.apply(calleeVal, simplify.parseArguments(node));
                                     return wrap(val);
@@ -445,10 +445,23 @@ function simplify_func(ast){
             }
         }
     });
+    }
+    catch(error){   
+        // try{
+        //     baseline.deobfuscate(ast, null, true);
+        // }
+        // catch(e){
+        //     sum+=1
+        //     console.log("not deal sum", sum)
+        // }
+        success = false;
+        return [ast, simplify.symbols, success];
+    }
 
-    console.log(simplify.symbols);
-    return [ast, simplify.symbols];
+    // console.log(simplify.symbols);
+    return [ast, simplify.symbols, success];
 }
+
 
 exports.simplify_func = simplify_func;
 
@@ -456,11 +469,12 @@ function convert_ast(code){
     return esprima.parse(code);
 }
 exports.convert_ast = convert_ast;
+// module.exports = Simplify;
 
-var filepath = process.argv[2];
-var code = fs.readFileSync(filepath, 'utf8');
-var _ast = esprima.parse(code);
+// var filepath = process.argv[2];
+// var code = fs.readFileSync(filepath, 'utf8');
+// var _ast = esprima.parse(code);
 
-var res_ast = simplify_func(_ast)[0];
-var result = escodegen.generate(res_ast);
-console.log(result);
+// var res_ast = simplify_func(_ast)[0];
+// var result = escodegen.generate(res_ast);
+// console.log(result);

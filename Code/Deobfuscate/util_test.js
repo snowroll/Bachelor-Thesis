@@ -63,7 +63,7 @@ class Util_Test{
             }
 
             case Syntax.NewExpression:{  //暂时ok
-                console.log("NewExpression");
+                // console.log("NewExpression");
                 var empty = false;
                 if(node.arguments.length === 0)
                     empty = true;
@@ -119,7 +119,7 @@ class Util_Test{
             }
 
             case Syntax.Identifier:{  //是标识符的，均返回值
-                console.log("Identifier");
+                // console.log("Identifier");
                 if(this.symbols.has(node.name)){
                     return this.symbols.get(node.name);
                 }
@@ -127,19 +127,19 @@ class Util_Test{
             }
 
             case Syntax.ArrayExpression:{
-                console.log("ArrayExpression")
+                // console.log("ArrayExpression")
                 // console.log(node.elements.map(parseStatic));
                 return node.elements.map(this.parseStatic);
             }
             case Syntax.ObjectExpression:
-                console.log("ObjectExpression")
+                // console.log("ObjectExpression")
                 let obj = {};
                 node.properties.forEach(property => obj[property.key.name ||
                     property.key.value] = this.parseStatic(property.value));
                 return obj;
             
             case Syntax.MemberExpression:{  //这里可以由simplifier中的解决，
-                console.log("MemberExpression")
+                // console.log("MemberExpression")
                 let _obj = this.parseStatic(node.object);
                 let _idx = this.parseStatic(node.property);
 
@@ -151,11 +151,11 @@ class Util_Test{
 
             //测试解决赋值问题
             case Syntax.BinaryExpression:{
-                console.log("BinaryExpression", this.isStatic(node.left), this.isStatic(node.right));
+                // console.log("BinaryExpression", this.isStatic(node.left), this.isStatic(node.right));
                 if([node.left, node.right].every(e => this.isStatic(e))){
                     let left = this.parseStatic(node.left);
                     let right = this.parseStatic(node.right);
-                    console.log("binary ", node.operator, "res", left, right);
+                    // console.log("binary ", node.operator, "res", left, right);
                     
                     let results = {  //这里的实现有点蠢，为什么先把值算出来，再看是哪种操作符
                         '|': left | right,

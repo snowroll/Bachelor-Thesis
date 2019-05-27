@@ -36,7 +36,7 @@ class ScopeChain{
      */
     set(name, val){  //给对象的属性name 赋值为val
         this.scope[name] = val;
-        console.log("set", name, val);
+        // console.log("set", name, val);
     }
 
     /**
